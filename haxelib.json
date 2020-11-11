@@ -1,0 +1,12 @@
+{
+  "name": "smartfox-mobile",
+  "classPath": "src",
+  "releasenote": "Smartfox for mobile",
+  "license": "MIT",
+  "contributors": ["miriti"],
+  "description": "Smartfox for mobile",
+  "version": "1.0.0",
+  "dependencies": {
+    "openfl": ""
+  }
+}
