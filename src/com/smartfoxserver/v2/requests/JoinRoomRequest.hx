@@ -64,7 +64,6 @@ class JoinRoomRequest extends BaseRequest {
 
 	/** @private */
 	public static inline var KEY_AS_SPECTATOR:String = "sp";
-
 	private var _rid:Int = -1;
 	private var _name:String;
 	private var _pass:String;
@@ -86,11 +85,11 @@ class JoinRoomRequest extends BaseRequest {
 	public function new(id:Dynamic, pass:String = null, roomIdToLeave:Int = -1, asSpect:Bool = false) {
 		super(BaseRequest.JoinRoom);
 
-		if (Std.is(id, String))
+		if (Std.isOfType(id, String))
 			_name = id;
-		else if (Std.is(id, Float))
+		else if (Std.isOfType(id, Float))
 			_rid = id;
-		else if (Std.is(id, Room))
+		else if (Std.isOfType(id, Room))
 			_id = cast(id, Room).id;
 
 		_pass = pass;

@@ -92,7 +92,6 @@ class CreateRoomRequest extends BaseRequest {
 
 	/** @private */
 	public static inline var KEY_ROOM_TO_LEAVE:String = "rl";
-
 	//--- MMORoom Params --------------------------------------------------------
 
 	/** @private */
@@ -160,7 +159,7 @@ class CreateRoomRequest extends BaseRequest {
 
 			for (item in _settings.variables) {
 				// Skip unknow elements
-				if (Std.is(item, RoomVariable)) {
+				if (Std.isOfType(item, RoomVariable)) {
 					var rVar:RoomVariable = cast(item, RoomVariable);
 					roomVars.addSFSArray(rVar.toSFSArray());
 				}
@@ -202,7 +201,7 @@ class CreateRoomRequest extends BaseRequest {
 		}
 
 		//--- MMORooms ------------------------------------------------------------------------
-		if (Std.is(_settings, MMORoomSettings)) {
+		if (Std.isOfType(_settings, MMORoomSettings)) {
 			var mmoSettings:MMORoomSettings = cast(_settings, MMORoomSettings);
 			var useFloats:Bool = mmoSettings.defaultAOI.isFloat();
 
@@ -253,13 +252,14 @@ class CreateRoomRequest extends BaseRequest {
 				errors.push("Missing Extension id");
 		}
 
-		if (Std.is(_settings, MMORoomSettings)) {
+		if (Std.isOfType(_settings, MMORoomSettings)) {
 			var mmoSettings:MMORoomSettings = cast(_settings, MMORoomSettings);
 
 			if (mmoSettings.defaultAOI == null)
 				errors.push("Missing default AoI(Area of Interest)");
 
-			if (mmoSettings.mapLimits != null && (mmoSettings.mapLimits.lowerLimit == null || mmoSettings.mapLimits.higherLimit == null))
+			if (mmoSettings.mapLimits != null
+				&& (mmoSettings.mapLimits.lowerLimit == null || mmoSettings.mapLimits.higherLimit == null))
 				errors.push("Map limits must be both defined");
 		}
 
