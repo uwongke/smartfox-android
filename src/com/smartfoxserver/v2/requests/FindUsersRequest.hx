@@ -50,6 +50,7 @@ class FindUsersRequest extends BaseRequest {
 
 	/** @private */
 	public static inline var KEY_FILTERED_USERS:String = "fu";
+
 	private var _matchExpr:MatchExpression;
 	private var _target:Dynamic;
 	private var _limit:Int;
@@ -90,9 +91,9 @@ class FindUsersRequest extends BaseRequest {
 		_sfso.putSFSArray(KEY_EXPRESSION, _matchExpr.toSFSArray());
 
 		if (_target != null) {
-			if (Std.isOfType(_target, Room))
+			if (Std.is(_target, Room))
 				_sfso.putInt(KEY_ROOM, cast(_target, Room).id);
-			else if (Std.isOfType(_target, String))
+			else if (Std.is(_target, String))
 				_sfso.putUtfString(KEY_GROUP, _target);
 			else
 				sfs.logger.warn("Unsupport target type for FindUsersRequest:" + _target);

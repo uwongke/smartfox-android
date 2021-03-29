@@ -84,7 +84,7 @@ class SFSArray implements ISFSArray {
 
 	/** @inheritDoc */
 	public function contains(obj:Dynamic):Bool {
-		if (Std.isOfType(obj, ISFSArray) || Std.isOfType(obj, ISFSObject))
+		if (Std.is(obj, ISFSArray) || Std.is(obj, ISFSObject))
 			throw new SFSError("ISFSArray and ISFSObject are not supported by this method.");
 
 		var found:Bool = false;
@@ -159,6 +159,7 @@ class SFSArray implements ISFSArray {
 			return prettyDump;
 		}
 	}
+
 	private function dump():String {
 		var strDump:String = DefaultObjectDumpFormatter.TOKEN_INDENT_OPEN;
 		var wrapper:SFSDataWrapper;
@@ -199,6 +200,7 @@ class SFSArray implements ISFSArray {
 	public function getHexDump():String {
 		return DefaultObjectDumpFormatter.hexDump(this.toBinary());
 	}
+
 	/*
 		*:::::::::::::::::::::::::::::::::::::::::
 		* Type setters
@@ -308,6 +310,7 @@ class SFSArray implements ISFSArray {
 	public function add(wrappedObject:SFSDataWrapper):Void {
 		dataHolder.push(wrappedObject);
 	}
+
 	private function addObject(value:Dynamic, type:Int):Void {
 		this.add(new SFSDataWrapper(type, value));
 	}
@@ -376,6 +379,7 @@ class SFSArray implements ISFSArray {
 		var wrapper:SFSDataWrapper = dataHolder[index];
 		return (wrapper != null ? (cast(wrapper.data, String)) : null);
 	}
+
 	private function getArray(index:Int):Array<Dynamic> {
 		var wrapper:SFSDataWrapper = dataHolder[index];
 		return (wrapper != null ? (cast(wrapper.data, Array<Dynamic>)) : null);
