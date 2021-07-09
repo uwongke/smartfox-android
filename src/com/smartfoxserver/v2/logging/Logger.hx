@@ -78,8 +78,8 @@ class Logger extends EventDispatcher
 	private var _loggingLevel:Int = LogLevel.INFO;
 	private var _loggingPrefix:String;
 	
-	/** @private */
-	function new(prefix:String="SFS2X")
+	/** was private but made public*/
+	public function new(prefix:String="SFS2X")
 	{
 		super();
 		_loggingPrefix = prefix;
