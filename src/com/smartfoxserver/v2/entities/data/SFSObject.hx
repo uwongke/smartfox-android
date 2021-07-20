@@ -497,6 +497,11 @@ class SFSObject implements ISFSObject {
 		dataHolder[key] = new SFSDataWrapper(SFSDataType.CLASS, value);
 	}
 
+	/** @inheritDoc */
+	public function putText(key:String, value:String):Void {
+		dataHolder[key] = new SFSDataWrapper(SFSDataType.TEXT, value);
+	}
+		
 	// Generic putter
 
 	/** @private */
