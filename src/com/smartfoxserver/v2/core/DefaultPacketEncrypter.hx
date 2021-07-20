@@ -5,7 +5,6 @@ package com.smartfoxserver.v2.core;
  * @author vincent blanchet
  */
 
-import com.hurlant.crypto.Crypto;
 import com.hurlant.crypto.symmetric.ICipher;
 import com.hurlant.crypto.symmetric.IPad;
 import com.hurlant.crypto.symmetric.IVMode;
@@ -18,10 +17,13 @@ import com.smartfoxserver.v2.util.CryptoKey;
 import openfl.errors.IllegalOperationError;
 import openfl.utils.ByteArray;
 
+import haxe.crypto.Aes;
+import haxe.crypto.mode.Mode;
+import openfl.utils.Endian;
+
 class DefaultPacketEncrypter implements IPacketEncrypter
 {
 	private var bitSwarm:BitSwarmClient;
-	private static var ALGORITHM:String = "aes-cbc";
 	
 	public function new(bitSwarm:BitSwarmClient)
 	{
@@ -30,33 +32,15 @@ class DefaultPacketEncrypter implements IPacketEncrypter
 	
 	public function encrypt(data:ByteArray):Void
 	{
-		var ck:CryptoKey = bitSwarm.cryptoKey;
-		
-		/*
-		trace("IV  : \n" + DefaultObjectDumpFormatter.hexDump(ck.iv))
-		trace("KEY : \n" + DefaultObjectDumpFormatter.hexDump(ck.key))
-		trace("DATA: \n" + DefaultObjectDumpFormatter.hexDump(data))
-		*/
-		var padding:IPad = new PKCS5();
-		
-		var cipher:ICipher = Crypto.getCipher(ALGORITHM,cast ck.key,cast padding);
-		var ivmode:IVMode = cast(cipher, IVMode);
-		ivmode.IV = cast ck.iv;
-		
-		cipher.encrypt(cast data);
+		// Write encrypted data to beginning of ByteArray
+		data.position = 0;
+		data.writeBytes(bitSwarm.cipher.encrypt(Mode.CBC, data));
 	}
 	
 	public function decrypt(data:ByteArray):Void
 	{
-		var ck:CryptoKey = bitSwarm.cryptoKey;
-			
-		var padding:IPad = new PKCS5();
-		
-		var cipher:ICipher = Crypto.getCipher(ALGORITHM, cast ck.key,cast padding);
-		var ivmode:IVMode = cast(cipher, IVMode);
-		ivmode.IV = cast ck.iv;
-		
-		cipher.decrypt(cast data);
+		// Continually write decrypted data into ByteArray
+		data.writeBytes(bitSwarm.cipher.decrypt(Mode.CBC, data));
 	}
 }
 	

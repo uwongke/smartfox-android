@@ -757,6 +757,9 @@ class SmartFox extends EventDispatcher {
 	// If true the client will fall back to BlueBox if no socket connection is available
 	private var _useBlueBox:Bool = true;
 
+    //https WebSocket protocol (Adobe AIR Target may does not support WSS protocol)
+    public var useWSS:Bool = true;
+
 	// If true the client is connected
 	private var _isConnected:Bool = false;
 
@@ -814,6 +817,8 @@ class SmartFox extends EventDispatcher {
 		"Linux"
 		#elseif windows
 		"Windows"
+		#elseif html5
+		"JavaScript"
 		#elseif mac
 		"macOS"
 		#elseif ios
@@ -956,6 +961,24 @@ class SmartFox extends EventDispatcher {
 			throw new IllegalOperationError("This operation must be executed before connecting!");
 	}
 
+	// WebSocket support
+	public var _useWebSocket:Bool = false;
+
+	public var useWebSocket(get, set):Bool;
+ 	private function get_useWebSocket():Bool
+	{
+		return _useWebSocket;
+	}
+
+	private function set_useWebSocket(value:Bool):Bool
+	{
+		if(this._isConnecting || this.isConnected)
+		{
+			_log.warn("A connection attempt is already in progress");
+			return _useWebSocket;
+		}
+		return _useWebSocket = value;
+	}
 	/**
 	 * @private
 	 *
@@ -1243,7 +1266,13 @@ class SmartFox extends EventDispatcher {
 		if (port < 0 || port > 65535)
 			throw new ArgumentError("Invalid connection port");
 
+		_bitSwarm.useWebSocket = useWebSocket;
+
 		// All fine and dandy, let's proceed with the connection
+		#if html5
+			_bitSwarm.useWebSocket = true;
+		#end
+
 		_lastIpAddress = host;
 		_isConnecting = true;
 		_bitSwarm.connect(host, port);
@@ -2062,6 +2091,9 @@ class SmartFox extends EventDispatcher {
 		// Enable BlueBox
 		_useBlueBox = cfgData.useBlueBox;
 
+		//Enable WebSocket
+		useWebSocket = cfgData.useWebSocket;
+		
 		// Store globally
 		_config = cfgData;
 	}

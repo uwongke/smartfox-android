@@ -16,6 +16,7 @@ class SmartFoxWrapper // extends SmartFox
 	public var useSSL:Bool;
 
 	public function new() {
+		sfsExt.useWebSocket = true;
 		sfsExt.addEventListener(SFSEvent.LOGIN, onSFSLoginSuccess);
 	}
 

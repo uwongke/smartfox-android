@@ -241,10 +241,17 @@ class SFSObject implements ISFSObject {
 	/** @inheritDoc */
 	public function getInt(key:String):Int {
 		var wrapper:SFSDataWrapper = cast dataHolder[key];
-		if (wrapper != null)
-			return Std.parseInt(wrapper.data);
-		else
+		if (wrapper != null) {
+			var value:Dynamic = wrapper.data;
+			if(Std.is(value, Int))
+			{
+				return value;
+			}
+			value = Std.parseInt(value);
+			return value;
+		} else {
 			return 0; // ==0
+		}
 	}
 
 	/** @inheritDoc */

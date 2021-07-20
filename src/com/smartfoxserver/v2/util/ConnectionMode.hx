@@ -18,6 +18,12 @@ class ConnectionMode
 	 */
 	public static inline var HTTP:String="http";
 	
+
+	/**
+	 * WebSocket support
+	 */
+	 public static inline var WEBSOCKET:String="WS";
+	 
 	// Avoid construction
 	public function new()
 	{

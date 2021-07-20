@@ -76,6 +76,13 @@ class ConfigData
 	public var httpsPort:Int = 8443;
 	
 	/**
+	 * Indicates whether the SmartFoxServer's WebSocket should be enabled or not.
+	 * 
+	 * @default false
+	 */
+	public var useWebSocket:Bool = false;
+
+	/**
 	 * Indicates whether the SmartFoxServer's BlueBox should be enabled or not.
 	 * 
 	 * @default true

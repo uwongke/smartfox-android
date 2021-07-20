@@ -2,6 +2,7 @@ package com.smartfoxserver.v2.bitswarm;
 
 import com.smartfoxserver.v2.SmartFox;
 import com.smartfoxserver.v2.bitswarm.bbox.BBClient;
+import com.smartfoxserver.v2.bitswarm.wsocket.*;
 import com.smartfoxserver.v2.bitswarm.bbox.BBEvent;
 import com.smartfoxserver.v2.controllers.ExtensionController;
 import com.smartfoxserver.v2.controllers.SystemController;
@@ -10,6 +11,7 @@ import com.smartfoxserver.v2.logging.Logger;
 import com.smartfoxserver.v2.util.ClientDisconnectionReason;
 import com.smartfoxserver.v2.util.ConnectionMode;
 import com.smartfoxserver.v2.util.CryptoKey;
+import haxe.crypto.Aes;
 import haxe.CallStack;
 import openfl.errors.ArgumentError;
 import openfl.utils.Endian;
@@ -27,6 +29,7 @@ import openfl.utils.ByteArray;
 class BitSwarmClient extends EventDispatcher 
 {
 	private var _socket:Socket;
+	private var _wsClient:WSClient;
 	private var _bbClient:BBClient;
 	private var _ioHandler:IoHandler;
 	private var _controllers:Map<Int,IController>;
@@ -45,7 +48,9 @@ class BitSwarmClient extends EventDispatcher
 	private var _controllersInited:Bool = false;
 	@:isVar
 	public var cryptoKey(get, set):CryptoKey;
-	
+	private var _useWebSocket:Bool = false;
+	public var cipher:Aes;
+
 	private var _useBlueBox:Bool = false;
 	private var _connectionMode:String;
 	private var _firstReconnAttempt:Float=-1;
@@ -122,7 +127,24 @@ class BitSwarmClient extends EventDispatcher
 		return _reconnectionDelayMillis;
 	}
 	
-	public var useBlueBox(get, null):Bool;
+	public var useWSS(get, never):Bool;
+	private function get_useWSS():Bool
+	{
+		return sfs.useWSS;
+	}
+
+	public var useWebSocket(get, set):Bool;
+	private function get_useWebSocket():Bool
+	{
+		return _useWebSocket;
+	}
+
+	private function set_useWebSocket(value:Bool):Bool
+	{
+		return _useWebSocket = value;
+	}
+
+	public var useBlueBox(get, never):Bool;
  	private function get_useBlueBox():Bool
 	{
 		return _useBlueBox;	
@@ -172,8 +194,39 @@ class BitSwarmClient extends EventDispatcher
 		_bbClient.addEventListener(BBEvent.DISCONNECT, onBBDisconnect);
 		_bbClient.addEventListener(BBEvent.IO_ERROR, onBBError);
 		_bbClient.addEventListener(BBEvent.SECURITY_ERROR, onBBError);
+
+		_wsClient = new WSClient();
+		_wsClient.addEventListener(WSEvent.CONNECT, this.onWSConnect);
+		_wsClient.addEventListener(WSEvent.DATA, this.onWSData);
+		_wsClient.addEventListener(WSEvent.CLOSED, this.onWSClosed);
+		_wsClient.addEventListener(WSEvent.IO_ERROR, this.onWSError);
+		_wsClient.addEventListener(WSEvent.SECURITY_ERROR, this.onWSSecurityError);
 	}
 	
+	private function onWSConnect(evt : WSEvent) : Void {
+		processConnect();
+	}
+	
+	private function onWSData(evt : WSEvent) : Void {
+		var buffer : ByteArray = evt.params.data;
+		if (buffer != null)
+		{
+			processData(buffer);
+		}
+	}
+	
+	private function onWSClosed(evt : WSEvent) : Void {
+		processClose(false);
+	}
+	
+	private function onWSError(evt : WSEvent) : Void {
+		processIOError(evt.params.message);
+	}
+
+	private function onWSSecurityError(evt : WSEvent) : Void {
+		processSecurityError(evt.params.message);
+	}
+
 	public function destroy():Void
 	{
 		_socket.removeEventListener(Event.CONNECT, onSocketConnect);
@@ -255,7 +308,11 @@ class BitSwarmClient extends EventDispatcher
 		_lastIpAddress = host;
 		_lastTcpPort = port;
 		
-		if(_useBlueBox)
+		if(_useWebSocket) {
+			_wsClient.connect(host, port, useWSS);
+			_connectionMode = ConnectionMode.WEBSOCKET;
+		}
+		else if(_useBlueBox)
 		{
 			_bbClient.pollSpeed=(sfs.config !=null)? sfs.config.blueBoxPollingRate:750;
 			_bbClient.connect(host, port);
@@ -288,17 +345,22 @@ class BitSwarmClient extends EventDispatcher
 	}
 	
 	
-	
+	public var webSocket(get , never):WSClient;
+
+	public function get_webSocket():WSClient
+	{
+		return _wsClient;
+	}
+
 	public function disconnect(reason:String=null):Void
 	{
 		if(_useBlueBox)
 			_bbClient.close();
-		else
-		{
-			if(socket.connected)
-				_socket.close();
-		}
-				
+		else if(_wsClient.connected)
+			_wsClient.close();
+		else if(_socket.connected)
+			_socket.close();
+		
 		onSocketClose(new BitSwarmEvent(BitSwarmEvent.DISCONNECT, { reason:reason } ));
 	}
 	
@@ -366,9 +428,9 @@ class BitSwarmClient extends EventDispatcher
 	}
 	
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	// Socket handlers
+	// Handler processes
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	private function onSocketConnect(evt:Event):Void
+	private function processConnect():Void 
 	{
 		_connected = true;
 		
@@ -380,15 +442,14 @@ class BitSwarmClient extends EventDispatcher
 		dispatchEvent(event);
 	}
 	
-	private function onSocketClose(evt:Event):Void
+	private function processClose(manual:Bool, ?evt:BitSwarmEvent):Void
 	{
 		// Connection is off
 		_connected = false;
 		
 		var isRegularDisconnection:Bool = !_attemptingReconnection && sfs.getReconnectionSeconds() == 0;
-		var isManualDisconnection:Bool = (Std.is(evt, BitSwarmEvent)) && cast(evt,BitSwarmEvent).params.reason == ClientDisconnectionReason.MANUAL;
-
-		if(isRegularDisconnection || isManualDisconnection)
+		
+		if(isRegularDisconnection || manual)
 		{
 			// Reset UDP Manager
 			_udpManager.reset();
@@ -462,42 +523,43 @@ class BitSwarmClient extends EventDispatcher
 			dispatchEvent(new BitSwarmEvent(BitSwarmEvent.DISCONNECT, { reason:ClientDisconnectionReason.UNKNOWN } ));
 	}
 	
-	private function onSocketData(evt:ProgressEvent):Void
-	{
-		var buffer:ByteArray = new ByteArray();
-		buffer.endian = Endian.BIG_ENDIAN;
-		try
-		{
-			
-			_socket.readBytes(buffer);
+	/**
+	@param buffer - Big endian byte array.
+	*/
+	private function processData(buffer:ByteArray):Void {
+		try {
 			_ioHandler.onDataRead(buffer);
 		}
 		catch(error:Dynamic)
 		{
-			try{
-			trace("## SocketDataError:" + error + " " + error.message);
-			trace(haxe.CallStack.toString( haxe.CallStack.exceptionStack()));
-			trace(buffer.toString());
-			var event:BitSwarmEvent = new BitSwarmEvent(BitSwarmEvent.DATA_ERROR);
-			event.params = { message:error.message, details:error.details };
-			
-			dispatchEvent(event);
-			}catch (e:Dynamic){
+			try {
+				trace("## SocketDataError:" + error + " " + error.message);
+				trace(haxe.CallStack.toString( haxe.CallStack.exceptionStack()));
+				trace(buffer.toString());
+				var event:BitSwarmEvent = new BitSwarmEvent(BitSwarmEvent.DATA_ERROR);
+				event.params = { message:error.message, details:error.details };
+				dispatchEvent(event);
+			} catch (e:Dynamic) {
 				trace(e);
 			}
 		}
 	}
 	
-	private function onSocketIOError(evt:IOErrorEvent):Void
+	private function processIOError(error:String):Void
 	{
-		trace("## SocketError:" + evt.toString());
+		trace("## SocketError:" + error);
 		var event:BitSwarmEvent = new BitSwarmEvent(BitSwarmEvent.IO_ERROR);
-		event.params = { message:evt.toString() };
+		event.params = { message: error };
 		
+		// Android _socket not receiving Event.CLOSE; manually disconnect on I/O error
+		#if android
+		disconnect();
+		#end
+
 		dispatchEvent(event);
 	}
 	
-	private function onSocketSecurityError(evt:SecurityErrorEvent):Void
+	private function processSecurityError(error:String):Void
 	{
 		// Reconnection failure
 		if(_attemptingReconnection)
@@ -506,13 +568,44 @@ class BitSwarmClient extends EventDispatcher
 			return;
 		}
 		
-		trace("## SecurityError:" + evt.toString());
+		trace("## SecurityError:" + error);
 		var event:BitSwarmEvent = new BitSwarmEvent(BitSwarmEvent.SECURITY_ERROR);
-		event.params = { message:evt.text };
+		event.params = { message: error };
 		
 		dispatchEvent(event);
 	}
 	
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	// Socket handlers
+	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+	private function onSocketConnect(evt:Event):Void {
+		processConnect();
+	}
+	
+	private function onSocketClose(evt:Event):Void {
+		if (Std.isOfType(evt, BitSwarmEvent)) {
+			var evt : BitSwarmEvent = cast evt;
+			processClose(evt.params.reason == ClientDisconnectionReason.MANUAL, evt);
+		} else {
+			processClose(false);
+		}
+	}
+	
+	private function onSocketData(evt:ProgressEvent):Void {
+		var buffer:ByteArray = new ByteArray();
+		buffer.endian = Endian.BIG_ENDIAN;
+		_socket.readBytes(buffer);
+		processData(buffer);
+	}
+	
+	private function onSocketIOError(evt:IOErrorEvent):Void {
+		processIOError(evt.toString());
+	}
+	
+	private function onSocketSecurityError(evt:SecurityErrorEvent):Void {
+		processSecurityError(evt.toString());
+	}
 	
 	//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 	// BlueBox handlers

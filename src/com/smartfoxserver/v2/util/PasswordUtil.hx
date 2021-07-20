@@ -1,8 +1,7 @@
 package com.smartfoxserver.v2.util;
 
-import com.hurlant.crypto.hash.IHash;
-import com.hurlant.crypto.hash.MD5;
-import com.hurlant.util.Hex;
+import haxe.crypto.Md5;
+import haxe.io.Bytes;
 
 import openfl.utils.ByteArray<Dynamic>;
 
@@ -30,9 +29,6 @@ class PasswordUtil
 	 */
 	public static function md5Password(pass:String):String
 	{
-		var hash:IHash=new MD5();
-		var data:ByteArray<Dynamic>=Hex.toArray(Hex.fromString(pass));
-		
-		return Hex.fromArray(hash.hash(data));
+		return Md5.encode(pass);
 	}
 }

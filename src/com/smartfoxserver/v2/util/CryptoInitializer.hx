@@ -13,6 +13,8 @@ import openfl.net.URLVariables;
 import openfl.utils.ByteArray;
 import openfl.utils.Endian;
 
+import haxe.crypto.Aes;
+import haxe.crypto.Base64;
 /**
  * ...
  * @author vincent blanchet
@@ -67,7 +69,7 @@ class CryptoInitializer {
 		var loader:URLLoader = cast evt.target;
 		var rawData:String = cast loader.data;
 
-		var byteData:ByteArray = cast Base64.decode(rawData);
+		var byteData:ByteArray = Base64.decode(rawData);
 
 		var iv:ByteArray = new ByteArray();
 		iv.endian = Endian.BIG_ENDIAN;
@@ -78,7 +80,7 @@ class CryptoInitializer {
 		key.writeBytes(byteData, 0, 16);
 		iv.writeBytes(byteData, 16, 16);
 
-		sfs.socketEngine.cryptoKey = new CryptoKey(iv, key);
+		sfs.socketEngine.cipher = new Aes(iv, key);
 
 		sfs.dispatchEvent(SFSEvent.newInst(SFSEvent.CRYPTO_INIT, {success: true}));
 	}

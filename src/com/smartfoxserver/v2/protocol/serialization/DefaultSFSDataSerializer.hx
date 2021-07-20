@@ -9,6 +9,7 @@ import com.smartfoxserver.v2.entities.data.SFSDataWrapper;
 import com.smartfoxserver.v2.entities.data.SFSObject;
 import com.smartfoxserver.v2.exceptions.SFSCodecError;
 import openfl.utils.Endian;
+import Type.ValueType;
 
 /** @private */
 class DefaultSFSDataSerializer implements ISFSDataSerializer {
@@ -255,6 +256,8 @@ class DefaultSFSDataSerializer implements ISFSDataSerializer {
 			}
 
 			decodedObject = new SFSDataWrapper(type, finalSfsObj);
+		} else if (headerByte == SFSDataType.TEXT) {
+			decodedObject = binDecode_TEXT(buffer);
 		}
 
 		// What is this typeID??
@@ -292,6 +295,9 @@ class DefaultSFSDataSerializer implements ISFSDataSerializer {
 
 			case SFSDataType.UTF_STRING:
 				buffer = binEncode_UTF_STRING(buffer, data);
+
+			case SFSDataType.TEXT:
+				buffer = binEncode_TEXT(buffer, cast(data, String));
 
 			case SFSDataType.BOOL_ARRAY:
 				buffer = binEncode_BOOL_ARRAY(buffer, data);
@@ -417,6 +423,12 @@ class DefaultSFSDataSerializer implements ISFSDataSerializer {
 
 	private function binDecode_DOUBLE(buffer:ByteArray):SFSDataWrapper {
 		return new SFSDataWrapper(SFSDataType.DOUBLE, buffer.readDouble());
+	}
+
+	private function binDecode_TEXT(buffer:ByteArray) : SFSDataWrapper {
+		var size:Int = buffer.readInt();
+		var value:String = buffer.readUTFBytes(size);
+		return new SFSDataWrapper(SFSDataType.TEXT,value);
 	}
 
 	private function binDecode_UTF_STRING(buffer:ByteArray):SFSDataWrapper {
@@ -599,6 +611,14 @@ class DefaultSFSDataSerializer implements ISFSDataSerializer {
 		data.writeDouble(value);
 
 		return addData(buffer, data);
+	}
+
+	private function binEncode_TEXT(buffer:ByteArray, value:String) : ByteArray {
+		var data:ByteArray = new ByteArray();
+		data.writeByte(SFSDataType.TEXT);
+		data.writeInt(value.length);
+		data.writeUTFBytes(value);
+		return addData(buffer,data);
 	}
 
 	private function binEncode_UTF_STRING(buffer:ByteArray, value:String):ByteArray {
@@ -965,7 +985,7 @@ class DefaultSFSDataSerializer implements ISFSDataSerializer {
 			 * ADDENDUM:	there is a special case in which the Dynamic is actually an Array with one element as Dynamic
 			 * 				in such case an Array is recognized as Dynamic!
 			 */
-			else if (item.toString() == "[object Dynamic]" && !(Std.is(item, Array))) {
+			 else if(Type.typeof(item) == ValueType.TObject) {
 				var subSfso:ISFSObject = new SFSObject();
 				sfso.putSFSObject(key, subSfso);
 
@@ -1038,7 +1058,7 @@ class DefaultSFSDataSerializer implements ISFSDataSerializer {
 				sfsa.addNull();
 
 			// See notes for SFSObject
-			else if (item.toString() == "[object Dynamic]" && !(Std.is(item, Array)))
+			else if(Type.typeof(item) == ValueType.TObject)
 				sfsa.addSFSObject(genericObjectToSFSObject(item, forceToNumber));
 			else if (Std.is(item, Array)) {
 				var subSfsa:ISFSArray = new SFSArray();
